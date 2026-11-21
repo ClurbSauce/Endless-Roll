@@ -4,33 +4,33 @@ import { EndlessRoll, type Hex, type CellContent, type CellState, key } from 'en
 type ContentType = 'numbers' | 'portfolio' | 'news';
 
 const PORTFOLIO_PROJECTS = [
-  { title: 'AI Chat App', tech: 'React, OpenAI', color: '#e0f2fe', textColor: '#0369a1' },
+  { title: 'AI Chat', tech: 'React, OpenAI', color: '#e0f2fe', textColor: '#0369a1' },
   { title: 'E-Commerce', tech: 'Next.js, Stripe', color: '#fef3c7', textColor: '#92400e' },
   { title: 'Task Manager', tech: 'Vue, Firebase', color: '#dcfce7', textColor: '#166534' },
-  { title: 'Portfolio Site', tech: 'Astro, Tailwind', color: '#f3e8ff', textColor: '#7c3aed' },
-  { title: 'Weather App', tech: 'React Native', color: '#fee2e2', textColor: '#dc2626' },
-  { title: 'Blog Platform', tech: 'Remix, Prisma', color: '#e0e7ff', textColor: '#4338ca' },
-  { title: 'Music Player', tech: 'Electron, Web Audio', color: '#fce7f3', textColor: '#be185d' },
-  { title: 'Recipe Finder', tech: 'SvelteKit', color: '#cffafe', textColor: '#0891b2' },
-  { title: 'Fitness Tracker', tech: 'Flutter', color: '#d1fae5', textColor: '#059669' },
-  { title: 'Code Editor', tech: 'Monaco, TypeScript', color: '#fef9c3', textColor: '#a16207' },
-  { title: 'Social Network', tech: 'GraphQL, Postgres', color: '#ede9fe', textColor: '#6d28d9' },
-  { title: 'Video Platform', tech: 'AWS, FFmpeg', color: '#fff1f2', textColor: '#e11d48' },
+  { title: 'Portfolio', tech: 'Astro', color: '#f3e8ff', textColor: '#7c3aed' },
+  { title: 'Weather', tech: 'React Native', color: '#fee2e2', textColor: '#dc2626' },
+  { title: 'Blog', tech: 'Remix, Prisma', color: '#e0e7ff', textColor: '#4338ca' },
+  { title: 'Music App', tech: 'Electron', color: '#fce7f3', textColor: '#be185d' },
+  { title: 'Recipes', tech: 'SvelteKit', color: '#cffafe', textColor: '#0891b2' },
+  { title: 'Fitness', tech: 'Flutter', color: '#d1fae5', textColor: '#059669' },
+  { title: 'Code Editor', tech: 'Monaco', color: '#fef9c3', textColor: '#a16207' },
+  { title: 'Social', tech: 'GraphQL', color: '#ede9fe', textColor: '#6d28d9' },
+  { title: 'Video', tech: 'AWS, FFmpeg', color: '#fff1f2', textColor: '#e11d48' },
 ];
 
 const NEWS_HEADLINES = [
-  { headline: 'Tech Giants Unveil New AI Models', category: 'Tech', color: '#dbeafe', textColor: '#1d4ed8' },
-  { headline: 'Markets Rally on Economic Data', category: 'Finance', color: '#d1fae5', textColor: '#047857' },
-  { headline: 'Climate Summit Reaches Agreement', category: 'World', color: '#fef3c7', textColor: '#b45309' },
-  { headline: 'New Study Links Sleep to Memory', category: 'Health', color: '#fce7f3', textColor: '#be185d' },
-  { headline: 'Space Mission Launches Tomorrow', category: 'Science', color: '#e0e7ff', textColor: '#4338ca' },
-  { headline: 'Championship Finals Set for Sunday', category: 'Sports', color: '#fee2e2', textColor: '#dc2626' },
-  { headline: 'Award Winners Announced Tonight', category: 'Entertainment', color: '#f3e8ff', textColor: '#7c3aed' },
-  { headline: 'Major Infrastructure Bill Passes', category: 'Politics', color: '#ecfccb', textColor: '#4d7c0f' },
-  { headline: 'Electric Vehicle Sales Surge', category: 'Auto', color: '#cffafe', textColor: '#0891b2' },
-  { headline: 'Remote Work Trend Continues', category: 'Business', color: '#fef9c3', textColor: '#a16207' },
-  { headline: 'New Restaurant Opens Downtown', category: 'Local', color: '#ffe4e6', textColor: '#e11d48' },
-  { headline: 'Scientists Discover New Species', category: 'Nature', color: '#dcfce7', textColor: '#15803d' },
+  { headline: 'Tech Giants Unveil AI', category: 'Tech', color: '#dbeafe', textColor: '#1d4ed8' },
+  { headline: 'Markets Rally Today', category: 'Finance', color: '#d1fae5', textColor: '#047857' },
+  { headline: 'Climate Deal Reached', category: 'World', color: '#fef3c7', textColor: '#b45309' },
+  { headline: 'Sleep Study Released', category: 'Health', color: '#fce7f3', textColor: '#be185d' },
+  { headline: 'Space Launch Ready', category: 'Science', color: '#e0e7ff', textColor: '#4338ca' },
+  { headline: 'Finals Set Sunday', category: 'Sports', color: '#fee2e2', textColor: '#dc2626' },
+  { headline: 'Award Show Tonight', category: 'Culture', color: '#f3e8ff', textColor: '#7c3aed' },
+  { headline: 'New Bill Passes', category: 'Politics', color: '#ecfccb', textColor: '#4d7c0f' },
+  { headline: 'EV Sales Surge', category: 'Auto', color: '#cffafe', textColor: '#0891b2' },
+  { headline: 'Remote Work Grows', category: 'Business', color: '#fef9c3', textColor: '#a16207' },
+  { headline: 'New Spot Opens', category: 'Local', color: '#ffe4e6', textColor: '#e11d48' },
+  { headline: 'Species Found', category: 'Nature', color: '#dcfce7', textColor: '#15803d' },
 ];
 
 function seededRandom(seed: number): number {
@@ -70,17 +70,14 @@ function getNumberColor(num: number) {
 export default function App() {
   const [center, setCenter] = useState<Hex>({ q: 0, r: 0 });
   const [contentType, setContentType] = useState<ContentType>('numbers');
-  const [selectedCell, setSelectedCell] = useState<Hex | null>(null);
+  const [selected, setSelected] = useState<Hex | null>(null);
 
   const handleCenterChange = useCallback((coord: Hex) => {
     setCenter(coord);
-    setSelectedCell(null);
   }, []);
 
-  const handleCellSelect = useCallback((coord: Hex) => {
-    setSelectedCell(prev => 
-      prev && key(prev) === key(coord) ? null : coord
-    );
+  const handleSelectedChange = useCallback((coord: Hex | null) => {
+    setSelected(coord);
   }, []);
 
   const cellProvider = useCallback((coord: Hex) => {
@@ -95,7 +92,8 @@ export default function App() {
   }, [contentType]);
 
   const renderCell = useCallback((_coord: Hex, data: unknown, state: CellState): CellContent => {
-    const { isCenter, isHovered } = state;
+    const { isCenter, isHovered, isSelected } = state;
+    const highlighted = isCenter || isSelected;
     
     switch (contentType) {
       case 'numbers': {
@@ -103,45 +101,43 @@ export default function App() {
         const colors = getNumberColor(num);
         return {
           label: num,
-          backgroundColor: isCenter ? '#cd603b' : isHovered ? '#e8e8dd' : colors.bg,
-          textColor: isCenter ? '#fff8ed' : colors.text,
-          outlineColor: isCenter ? '#bd5433' : isHovered ? '#b8b8a8' : colors.outline,
+          backgroundColor: highlighted ? '#cd603b' : isHovered ? '#e8e8dd' : colors.bg,
+          textColor: highlighted ? '#fff8ed' : colors.text,
+          outlineColor: highlighted ? '#bd5433' : isHovered ? '#b8b8a8' : colors.outline,
           icon: isCenter ? 'dot' : undefined,
         };
       }
       case 'portfolio': {
         const project = data as typeof PORTFOLIO_PROJECTS[0];
         return {
-          label: project.title.split(' ')[0],
-          sublabel: project.tech.split(',')[0],
-          backgroundColor: isCenter ? '#2563eb' : isHovered ? '#f0f4ff' : project.color,
-          textColor: isCenter ? '#ffffff' : project.textColor,
-          outlineColor: isCenter ? '#1d4ed8' : isHovered ? '#a0aec0' : project.textColor + '40',
-          fontSize: 0.85,
+          label: project.title,
+          sublabel: project.tech,
+          backgroundColor: highlighted ? '#2563eb' : isHovered ? '#f0f4ff' : project.color,
+          textColor: highlighted ? '#ffffff' : project.textColor,
+          outlineColor: highlighted ? '#1d4ed8' : isHovered ? '#a0aec0' : project.textColor + '40',
+          fontSize: 0.9,
         };
       }
       case 'news': {
         const article = data as typeof NEWS_HEADLINES[0];
-        const words = article.headline.split(' ');
-        const shortTitle = words.slice(0, 2).join(' ');
         return {
-          label: shortTitle,
+          label: article.headline,
           sublabel: article.category,
-          backgroundColor: isCenter ? '#1e293b' : isHovered ? '#f8fafc' : article.color,
-          textColor: isCenter ? '#ffffff' : article.textColor,
-          outlineColor: isCenter ? '#0f172a' : isHovered ? '#94a3b8' : article.textColor + '40',
-          fontSize: 0.8,
+          backgroundColor: highlighted ? '#1e293b' : isHovered ? '#f8fafc' : article.color,
+          textColor: highlighted ? '#ffffff' : article.textColor,
+          outlineColor: highlighted ? '#0f172a' : isHovered ? '#94a3b8' : article.textColor + '40',
+          fontSize: 0.85,
         };
       }
     }
   }, [contentType]);
 
   const selectedData = useMemo(() => {
-    if (!selectedCell) return null;
-    const data = cellProvider(selectedCell);
+    if (!selected) return null;
+    const data = cellProvider(selected);
     switch (contentType) {
       case 'numbers':
-        return { title: `Cell ${key(selectedCell)}`, subtitle: `Value: ${data}` };
+        return { title: `Cell ${key(selected)}`, subtitle: `Value: ${data}` };
       case 'portfolio': {
         const p = data as typeof PORTFOLIO_PROJECTS[0];
         return { title: p.title, subtitle: p.tech };
@@ -151,32 +147,32 @@ export default function App() {
         return { title: n.headline, subtitle: n.category };
       }
     }
-  }, [selectedCell, cellProvider, contentType]);
+  }, [selected, cellProvider, contentType]);
 
-  const contentTypes: { type: ContentType; label: string }[] = [
-    { type: 'numbers', label: '🔢 Numbers' },
-    { type: 'portfolio', label: '💼 Portfolio' },
-    { type: 'news', label: '📰 News' },
+  const contentTypes: { type: ContentType; label: string; short: string }[] = [
+    { type: 'numbers', label: 'Numbers', short: '#' },
+    { type: 'portfolio', label: 'Portfolio', short: '💼' },
+    { type: 'news', label: 'News', short: '📰' },
   ];
 
   return (
     <div className="app">
       <header>
-        <h1>
-          <span>🌐</span>
-          Endless Roll
-        </h1>
-        <div className="switcher">
-          {contentTypes.map(({ type, label }) => (
+        <h1>Endless Roll</h1>
+        <div className="switcher" role="tablist" aria-label="Content type">
+          {contentTypes.map(({ type, label, short }) => (
             <button
               key={type}
+              role="tab"
+              aria-selected={contentType === type}
               className={contentType === type ? 'active' : ''}
               onClick={() => {
                 setContentType(type);
-                setSelectedCell(null);
+                setSelected(null);
               }}
             >
-              {label}
+              <span className="btn-icon">{short}</span>
+              <span className="btn-label">{label}</span>
             </button>
           ))}
         </div>
@@ -187,12 +183,14 @@ export default function App() {
           <EndlessRoll
             center={center}
             onCenterChange={handleCenterChange}
-            onCellSelect={handleCellSelect}
+            selected={selected}
+            onSelectedChange={handleSelectedChange}
             cellProvider={cellProvider}
             renderCell={renderCell}
             settings={{
               visibleRings: 2,
               duration: 350,
+              sphereRadius: 5,
             }}
             enableDrag={true}
             ariaLabel={`Endless rolling sphere showing ${contentType}`}
@@ -201,22 +199,17 @@ export default function App() {
         </div>
 
         {selectedData && (
-          <div className="cell-preview">
+          <div className="cell-preview" role="status" aria-live="polite">
             <h3>{selectedData.title}</h3>
             <p>{selectedData.subtitle}</p>
           </div>
         )}
       </main>
 
-      <div className="info-bar">
-        <span className="coords">
-          Center: ({center.q}, {center.r})
-        </span>
-        <div className="hint">
-          <span>👆 Tap to navigate</span>
-          <span>✋ Drag to explore</span>
-        </div>
-      </div>
+      <footer>
+        <span className="coords">({center.q}, {center.r})</span>
+        <span className="hint">Tap cell or drag to explore</span>
+      </footer>
     </div>
   );
 }

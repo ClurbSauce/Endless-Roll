@@ -19,6 +19,7 @@ import {
   disk,
   key,
   distance,
+  neighbors,
   roundHex,
   hexTriangles,
   localPosition,
@@ -47,6 +48,34 @@ interface Tile {
   coord: Hex;
 }
 
+const COMPONENT_STYLES = `
+.endless-roll {
+  position: relative;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.endless-roll-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.endless-roll-canvas canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+`;
+
+let stylesInjected = false;
+function injectStyles() {
+  if (stylesInjected || typeof document === 'undefined') return;
+  const style = document.createElement('style');
+  style.textContent = COMPONENT_STYLES;
+  document.head.appendChild(style);
+  stylesInjected = true;
+}
+
 function EndlessRollInner<T>(
   props: EndlessRollProps<T>,
   ref: ForwardedRef<EndlessRollHandle>
@@ -61,6 +90,7 @@ function EndlessRollInner<T>(
     resetKey = '',
     fallback,
     onWebGLError,
+    selected,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,10 +103,29 @@ function EndlessRollInner<T>(
   
   const [error, setError] = useState<string | null>(null);
   
+  const renderCellRef = useRef(props.renderCell);
+  const cellProviderRef = useRef(props.cellProvider);
+  const [renderVersion, setRenderVersion] = useState(0);
+  
+  useEffect(() => {
+    if (renderCellRef.current !== props.renderCell || cellProviderRef.current !== props.cellProvider) {
+      renderCellRef.current = props.renderCell;
+      cellProviderRef.current = props.cellProvider;
+      setRenderVersion(v => v + 1);
+    }
+  }, [props.renderCell, props.cellProvider]);
+  
   const settings = validateSettings(settingsInput ?? {});
 
+  useEffect(() => {
+    injectStyles();
+  }, []);
+
   useImperativeHandle(ref, () => ({
-    navigateTo: (coord: Hex, animate = true) => navigateRef.current?.(coord, animate),
+    navigateTo: (coord: Hex, animate = true) => {
+      navigateRef.current?.(coord, animate);
+      latestProps.current.onCenterChange?.(coord);
+    },
     getCurrentPosition: () => getPositionRef.current?.() ?? center,
     refresh: () => refreshRef.current?.(),
   }), [center]);
@@ -104,6 +153,7 @@ function EndlessRollInner<T>(
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
+    renderer.domElement.style.touchAction = 'none';
 
     const scene = new THREE.Scene();
     scene.add(new THREE.HemisphereLight(0xffffff, 0x889581, 1.7));
@@ -126,6 +176,7 @@ function EndlessRollInner<T>(
     let height = 0;
     let disposed = false;
     let hoveredId: string | null = null;
+    let isDragging = false;
 
     const disposeTile = (tile: Tile) => {
       scene.remove(tile.mesh);
@@ -137,9 +188,10 @@ function EndlessRollInner<T>(
     const getContent = (coord: Hex, isCenter: boolean, isHovered: boolean): CellContent => {
       const p = latestProps.current;
       const data = p.cellProvider(coord);
+      const selectedKey = p.selected ? key(p.selected) : null;
       const state: CellState = {
         isCenter,
-        isSelected: false,
+        isSelected: selectedKey === key(coord),
         distanceFromCenter: distance(coord, p.center),
         isHovered,
       };
@@ -156,6 +208,7 @@ function EndlessRollInner<T>(
         pan = snapRoll({ q: 0, r: 0 }, now);
         currentResetKey = p.resetKey ?? '';
         press = null;
+        isDragging = false;
       } else if (key(roll.to) !== key(p.center)) {
         const adjacent = distance(roll.to, p.center) === 1;
         const duration = adjacent && !reducedMotion.matches ? s.duration : 0;
@@ -164,7 +217,8 @@ function EndlessRollInner<T>(
 
       const offset = roundHex(sampleRoll(pan, now));
       const viewCenter = { q: p.center.q + offset.q, r: p.center.r + offset.r };
-      const cells = disk(viewCenter, s.visibleRings);
+      const extraRings = isDragging ? 2 : 0;
+      const cells = disk(viewCenter, s.visibleRings + extraRings);
       const ids = new Set(cells.map(key));
 
       for (const [id, tile] of tiles) {
@@ -245,9 +299,10 @@ function EndlessRollInner<T>(
       camera.aspect = w / h;
       camera.fov = s.perspective;
       
+      const fovRad = s.perspective * Math.PI / 180;
       const extent = s.sphereRadius * (2 * s.visibleRings + 1) / 
         Math.hypot(2 * s.visibleRings + 1, s.sphereRadius);
-      const fit = extent / Math.tan(45 * Math.PI / 360) / Math.min(1, w / h) + 1;
+      const fit = extent / Math.tan(fovRad / 2) / Math.min(1, w / h) + 1;
       camera.position.set(0, 0, fit * s.cameraDistance / 9);
       camera.lookAt(0, 0, 0);
       camera.updateProjectionMatrix();
@@ -255,6 +310,9 @@ function EndlessRollInner<T>(
       const base = sampleRoll(roll, now);
       const offset = sampleRoll(pan, now);
       const origin = { q: base.q + offset.q, r: base.r + offset.r };
+
+      const dragDistortionFactor = isDragging ? 0.7 : 1.0;
+      const effectiveRadius = s.sphereRadius / dragDistortionFactor;
 
       for (const tile of tiles.values()) {
         const pos = tile.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -265,10 +323,10 @@ function EndlessRollInner<T>(
           const point = project(
             tileCenter.x + rawTriangles[i] * s.cellSize * 0.94,
             tileCenter.y + rawTriangles[i + 1] * s.cellSize * 0.94,
-            s.sphereRadius
+            effectiveRadius
           );
           pos.setXYZ(i / 2, ...point);
-          const n = sphereNormal(point, s.sphereRadius);
+          const n = sphereNormal(point, effectiveRadius);
           normal.setXYZ(i / 2, ...n);
         }
         pos.needsUpdate = true;
@@ -327,7 +385,21 @@ function EndlessRollInner<T>(
 
     const onPointerCancel = () => {
       if (press?.dragging) {
+        isDragging = false;
+        const now = performance.now();
+        const s = validateSettings(latestProps.current.settings ?? {});
+        const currentOffset = roundHex(sampleRoll(pan, now));
+        const newCenter = {
+          q: latestProps.current.center.q + currentOffset.q,
+          r: latestProps.current.center.r + currentOffset.r,
+        };
+        pan = snapRoll({ q: 0, r: 0 }, now);
+        if (key(newCenter) !== key(latestProps.current.center)) {
+          roll = retargetRoll(roll, newCenter, now, reducedMotion.matches ? 0 : s.duration);
+          latestProps.current.onCenterChange?.(newCenter);
+        }
         latestProps.current.onDragEnd?.();
+        sync();
       }
       press = null;
       renderer.domElement.style.cursor = 'default';
@@ -344,9 +416,19 @@ function EndlessRollInner<T>(
       if (!start || start.id !== e.pointerId) return;
 
       if (start.dragging) {
+        isDragging = false;
         const now = performance.now();
         const s = validateSettings(latestProps.current.settings ?? {});
-        pan = retargetRoll(pan, { q: 0, r: 0 }, now, reducedMotion.matches ? 0 : s.duration);
+        const currentOffset = roundHex(sampleRoll(pan, now));
+        const newCenter = {
+          q: latestProps.current.center.q + currentOffset.q,
+          r: latestProps.current.center.r + currentOffset.r,
+        };
+        pan = snapRoll({ q: 0, r: 0 }, now);
+        if (key(newCenter) !== key(latestProps.current.center)) {
+          roll = retargetRoll(roll, newCenter, now, reducedMotion.matches ? 0 : s.duration);
+          latestProps.current.onCenterChange?.(newCenter);
+        }
         latestProps.current.onDragEnd?.();
         sync();
         return;
@@ -365,10 +447,12 @@ function EndlessRollInner<T>(
 
       if (navigable) {
         const data = p.cellProvider(tile.coord);
+        p.onSelectedChange?.(tile.coord);
         p.onCellSelect?.(tile.coord, data);
         p.onCenterChange?.(tile.coord);
-      } else if (key(tile.coord) === key(p.center)) {
+      } else {
         const data = p.cellProvider(tile.coord);
+        p.onSelectedChange?.(tile.coord);
         p.onCellSelect?.(tile.coord, data);
       }
     };
@@ -382,6 +466,7 @@ function EndlessRollInner<T>(
 
         if (!press.dragging && Math.hypot(dx, dy) > 8) {
           press.dragging = true;
+          isDragging = true;
           p.onDragStart?.();
         }
 
@@ -417,6 +502,18 @@ function EndlessRollInner<T>(
       }
     };
 
+    const onContextMenu = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+      }
+    };
+
     const onContextLost = (e: Event) => {
       e.preventDefault();
       const msg = 'WebGL context was lost.';
@@ -430,6 +527,8 @@ function EndlessRollInner<T>(
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+    renderer.domElement.addEventListener('contextmenu', onContextMenu);
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
 
     const resizeObserver = new ResizeObserver(requestDraw);
     resizeObserver.observe(container);
@@ -460,6 +559,8 @@ function EndlessRollInner<T>(
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+      renderer.domElement.removeEventListener('contextmenu', onContextMenu);
+      renderer.domElement.removeEventListener('touchstart', onTouchStart);
 
       for (const tile of tiles.values()) {
         disposeTile(tile);
@@ -485,13 +586,50 @@ function EndlessRollInner<T>(
     resetKey,
     enableDrag,
     dragLimitProp,
+    renderVersion,
+    selected?.q,
+    selected?.r,
   ]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const p = latestProps.current;
+    
     if (e.key === 'Enter' || e.key === ' ') {
-      const p = latestProps.current;
+      e.preventDefault();
       const data = p.cellProvider(p.center);
+      p.onSelectedChange?.(p.center);
       p.onCellSelect?.(p.center, data);
+      return;
+    }
+    
+    const directionMap: Record<string, number> = {
+      'ArrowRight': 0,
+      'ArrowUp': 1,
+      'ArrowLeft': 3,
+      'ArrowDown': 4,
+    };
+    
+    if (e.key in directionMap) {
+      e.preventDefault();
+      const neighborList = neighbors(p.center);
+      const dirIndex = directionMap[e.key];
+      
+      let targetIndex = dirIndex;
+      if (e.key === 'ArrowUp') {
+        targetIndex = e.shiftKey ? 2 : 1;
+      } else if (e.key === 'ArrowDown') {
+        targetIndex = e.shiftKey ? 5 : 4;
+      }
+      
+      const target = neighborList[targetIndex];
+      const navigable = p.isNavigable?.(target, p.center) ?? true;
+      
+      if (navigable) {
+        const data = p.cellProvider(target);
+        p.onSelectedChange?.(target);
+        p.onCellSelect?.(target, data);
+        p.onCenterChange?.(target);
+      }
     }
   }, []);
 

@@ -34,9 +34,9 @@ export type RenderCell<T = unknown> = (
 
 /** Content that can be rendered in a cell */
 export interface CellContent {
-  /** Primary text/number to display */
+  /** Primary text/number to display (auto-wrapped and scaled to fit) */
   label?: string | number;
-  /** Secondary text */
+  /** Secondary text (auto-scaled, may be truncated on small cells) */
   sublabel?: string;
   /** Background color (CSS color string) */
   backgroundColor?: string;
@@ -44,9 +44,9 @@ export interface CellContent {
   textColor?: string;
   /** Outline/border color */
   outlineColor?: string;
-  /** Custom React node for more complex content (rendered to canvas) */
+  /** Icon to display below the label */
   icon?: 'dot' | 'star' | 'check' | 'arrow';
-  /** Font size multiplier (default 1) */
+  /** Font size multiplier (default 1, automatically scaled for readability) */
   fontSize?: number;
 }
 
@@ -58,11 +58,17 @@ export interface EndlessRollProps<T = unknown> {
   /** Current center coordinate of the sphere view */
   center: Hex;
   
-  /** Called when the center changes (user navigation) */
+  /** Called when the center changes (user navigation or programmatic) */
   onCenterChange?: (coord: Hex) => void;
   
   /** Called when a cell is selected/clicked */
   onCellSelect?: (coord: Hex, data: T | undefined) => void;
+  
+  /** Currently selected cell coordinate */
+  selected?: Hex | null;
+  
+  /** Called when selection changes */
+  onSelectedChange?: (coord: Hex | null) => void;
   
   /** Render function for cell content */
   renderCell: RenderCell<T>;
@@ -106,7 +112,7 @@ export interface EndlessRollProps<T = unknown> {
 
 /** Imperative handle for EndlessRoll */
 export interface EndlessRollHandle {
-  /** Navigate to a specific coordinate */
+  /** Navigate to a specific coordinate (calls onCenterChange) */
   navigateTo: (coord: Hex, animate?: boolean) => void;
   /** Get the current interpolated center position */
   getCurrentPosition: () => Hex;

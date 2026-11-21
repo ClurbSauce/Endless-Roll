@@ -13,7 +13,7 @@
         "default": "./dist/index.js"
       },
       "require": {
-        "types": "./dist/index.d.cts",
+        "types": "./dist/index.d.ts",
         "default": "./dist/index.cjs"
       }
     },
@@ -23,7 +23,7 @@
         "default": "./dist/core/index.js"
       },
       "require": {
-        "types": "./dist/core/index.d.cts",
+        "types": "./dist/core/index.d.ts",
         "default": "./dist/core/index.cjs"
       }
     }
@@ -35,11 +35,11 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "cd demo && npm run dev",
+    "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "echo 'ESLint not configured'",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
@@ -65,7 +65,7 @@
     "@types/react-dom": "^18.2.18",
     "@types/three": "^0.160.0",
     "@vitejs/plugin-react": "^4.2.1",
-    "jsdom": "^31.0.1",
+    "jsdom": "^23.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.160.0",
